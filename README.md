@@ -111,6 +111,7 @@ Please open an issue if you have another model that works or doesn't work. If yo
 * **Humidity Readings:** Current humidity is exposed both on the main tile and a dedicated humidity sensor.
 * **Target Humidity:** Adjust the drying target between 30% and 85% using the slider, and read back the exact setpoint via a separate “Target Humidity” sensor tile.
 * **Fan Speed:** The Rotation Speed slider maps to the Low/Medium/High fan levels and automatically powers on the unit when needed.
+* **Gentle Slider Updates:** Target humidity and fan speed commands are debounced, so HomeKit can be dragged smoothly without spamming the Dreo API—only the final value after a short pause gets sent.
 * **Mode Switch:** The clearly-labeled “Continuous Mode” switch lets you jump between Auto drying (off) and Continuous mode (on).
 * **Child Lock / Panel Sound / Display:** Child lock is mapped to the Lock Physical Controls characteristic, and dedicated switches labelled “Panel Sound” and “Display Light” control the device buzzer and on-device display.
 * **Temperature Sensor:** When the global temperature sensor option is enabled, the dehumidifier also exposes its onboard temperature reading (auto-converted to °C for HomeKit).

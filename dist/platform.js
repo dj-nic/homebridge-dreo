@@ -179,8 +179,8 @@ class DreoPlatform {
                     new HumidifierAccessory_1.HumidifierAccessory(this, accessory, state);
                     break;
                 case 'DR-HDH':
-                    // Dehumidifier (HomeKit lacks a dedicated enum, reuse AIR_PURIFIER so it groups correctly)
-                    accessory.category = 19 /* AIR_PURIFIER */;
+                    // Dehumidifier (use humidifier category for closest native icon/behavior)
+                    accessory.category = 22 /* AIR_HUMIDIFIER */;
                     new DehumidifierAccessory_1.DehumidifierAccessory(this, accessory, state);
                     break;
                 default:

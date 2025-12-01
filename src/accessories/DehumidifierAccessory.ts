@@ -40,6 +40,11 @@ export class DehumidifierAccessory extends BaseAccessory {
   private displayLightSwitch?: Service;
   private readonly supportsWindLevel: boolean;
   private readonly supportsChildLock: boolean;
+  private targetHumidityDebounceTimer?: NodeJS.Timeout;
+  private fanSpeedDebounceTimer?: NodeJS.Timeout;
+  private pendingTargetHumidity?: number;
+  private pendingFanLevel?: number;
+  private readonly COMMAND_DEBOUNCE_MS = 600;
 
   private readonly HUMIDITY_MIN = 30;
   private readonly HUMIDITY_MAX = 85;
@@ -194,7 +199,8 @@ export class DehumidifierAccessory extends BaseAccessory {
       this.accessory.addService(this.platform.Service.HumiditySensor, 'Target Humidity', 'TargetHumidity');
 
     this.targetHumiditySensor
-      .setCharacteristic(this.platform.Characteristic.Name, 'Target Humidity');
+      .setCharacteristic(this.platform.Characteristic.Name, 'Target Humidity')
+      .updateCharacteristic(this.platform.Characteristic.Name, 'Target Humidity');
 
     this.targetHumiditySensor
       .getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
@@ -204,7 +210,8 @@ export class DehumidifierAccessory extends BaseAccessory {
       this.modeSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'ContinuousMode') ||
         this.accessory.addService(this.platform.Service.Switch, 'Continuous Mode', 'ContinuousMode');
       this.modeSwitch
-        .setCharacteristic(this.platform.Characteristic.Name, 'Continuous Mode');
+        .setCharacteristic(this.platform.Characteristic.Name, 'Continuous Mode')
+        .updateCharacteristic(this.platform.Characteristic.Name, 'Continuous Mode');
       this.modeSwitch
         .getCharacteristic(this.platform.Characteristic.On)
         .onSet(this.setContinuousMode.bind(this))
@@ -215,7 +222,8 @@ export class DehumidifierAccessory extends BaseAccessory {
       this.panelSoundSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'PanelSound') ||
         this.accessory.addService(this.platform.Service.Switch, 'Panel Sound', 'PanelSound');
       this.panelSoundSwitch
-        .setCharacteristic(this.platform.Characteristic.Name, 'Panel Sound');
+        .setCharacteristic(this.platform.Characteristic.Name, 'Panel Sound')
+        .updateCharacteristic(this.platform.Characteristic.Name, 'Panel Sound');
       this.panelSoundSwitch
         .getCharacteristic(this.platform.Characteristic.On)
         .onSet(this.setPanelSound.bind(this))
@@ -226,7 +234,8 @@ export class DehumidifierAccessory extends BaseAccessory {
       this.displayLightSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'DisplayLight') ||
         this.accessory.addService(this.platform.Service.Switch, `${deviceName} Display`, 'DisplayLight');
       this.displayLightSwitch
-        .setCharacteristic(this.platform.Characteristic.Name, 'Display Light');
+        .setCharacteristic(this.platform.Characteristic.Name, 'Display Light')
+        .updateCharacteristic(this.platform.Characteristic.Name, 'Display Light');
       this.displayLightSwitch
         .getCharacteristic(this.platform.Characteristic.On)
         .onSet(this.setDisplayLight.bind(this))
@@ -542,13 +551,17 @@ export class DehumidifierAccessory extends BaseAccessory {
     this.targetHumiditySensor
       ?.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
       .updateValue(humidity);
-    this.platform.webHelper.control(this.sn, { rhautolevel: humidity });
+    this.scheduleTargetHumidityCommand(humidity);
     this.updateCurrentStateCharacteristic();
   }
 
   private setRotationSpeed(value: unknown) {
     const numeric = this.toNumber(value as RawReportedValue) ?? 0;
     if (numeric <= 0) {
+      if (this.fanSpeedDebounceTimer) {
+        clearTimeout(this.fanSpeedDebounceTimer);
+        this.fanSpeedDebounceTimer = undefined;
+      }
       this.setActive(false);
       return;
     }
@@ -570,10 +583,36 @@ export class DehumidifierAccessory extends BaseAccessory {
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.RotationSpeed)
       .updateValue(this.getRotationSpeed());
-    this.platform.webHelper.control(this.sn, {
-      poweron: true,
-      windlevel: converted,
-    });
+    this.scheduleFanSpeedCommand(converted);
+  }
+
+  private scheduleTargetHumidityCommand(value: number) {
+    this.pendingTargetHumidity = value;
+    if (this.targetHumidityDebounceTimer) {
+      clearTimeout(this.targetHumidityDebounceTimer);
+    }
+    this.targetHumidityDebounceTimer = setTimeout(() => {
+      if (this.pendingTargetHumidity !== undefined) {
+        this.platform.webHelper.control(this.sn, { rhautolevel: this.pendingTargetHumidity });
+      }
+      this.targetHumidityDebounceTimer = undefined;
+    }, this.COMMAND_DEBOUNCE_MS);
+  }
+
+  private scheduleFanSpeedCommand(level: number) {
+    this.pendingFanLevel = level;
+    if (this.fanSpeedDebounceTimer) {
+      clearTimeout(this.fanSpeedDebounceTimer);
+    }
+    this.fanSpeedDebounceTimer = setTimeout(() => {
+      if (this.pendingFanLevel !== undefined) {
+        this.platform.webHelper.control(this.sn, {
+          poweron: true,
+          windlevel: this.pendingFanLevel,
+        });
+      }
+      this.fanSpeedDebounceTimer = undefined;
+    }, this.COMMAND_DEBOUNCE_MS);
   }
 
   private setChildLock(value: unknown) {

@@ -32,6 +32,11 @@ export declare class DehumidifierAccessory extends BaseAccessory {
     private displayLightSwitch?;
     private readonly supportsWindLevel;
     private readonly supportsChildLock;
+    private targetHumidityDebounceTimer?;
+    private fanSpeedDebounceTimer?;
+    private pendingTargetHumidity?;
+    private pendingFanLevel?;
+    private readonly COMMAND_DEBOUNCE_MS;
     private readonly HUMIDITY_MIN;
     private readonly HUMIDITY_MAX;
     private readonly HUMIDITY_DEFAULT;
@@ -68,6 +73,8 @@ export declare class DehumidifierAccessory extends BaseAccessory {
     getActive(): boolean;
     private setTargetHumidity;
     private setRotationSpeed;
+    private scheduleTargetHumidityCommand;
+    private scheduleFanSpeedCommand;
     private setChildLock;
     private setContinuousMode;
     private setPanelSound;

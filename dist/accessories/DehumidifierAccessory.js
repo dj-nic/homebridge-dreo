@@ -5,6 +5,7 @@ const BaseAccessory_1 = require("./BaseAccessory");
 class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
     constructor(platform, accessory, state) {
         super(platform, accessory);
+        this.COMMAND_DEBOUNCE_MS = 600;
         this.HUMIDITY_MIN = 30;
         this.HUMIDITY_MAX = 85;
         this.HUMIDITY_DEFAULT = 50;
@@ -132,7 +133,8 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         this.targetHumiditySensor = this.accessory.getServiceById(this.platform.Service.HumiditySensor, 'TargetHumidity') ||
             this.accessory.addService(this.platform.Service.HumiditySensor, 'Target Humidity', 'TargetHumidity');
         this.targetHumiditySensor
-            .setCharacteristic(this.platform.Characteristic.Name, 'Target Humidity');
+            .setCharacteristic(this.platform.Characteristic.Name, 'Target Humidity')
+            .updateCharacteristic(this.platform.Characteristic.Name, 'Target Humidity');
         this.targetHumiditySensor
             .getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
             .onGet(this.getTargetHumidity.bind(this));
@@ -140,7 +142,8 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
             this.modeSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'ContinuousMode') ||
                 this.accessory.addService(this.platform.Service.Switch, 'Continuous Mode', 'ContinuousMode');
             this.modeSwitch
-                .setCharacteristic(this.platform.Characteristic.Name, 'Continuous Mode');
+                .setCharacteristic(this.platform.Characteristic.Name, 'Continuous Mode')
+                .updateCharacteristic(this.platform.Characteristic.Name, 'Continuous Mode');
             this.modeSwitch
                 .getCharacteristic(this.platform.Characteristic.On)
                 .onSet(this.setContinuousMode.bind(this))
@@ -150,7 +153,8 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
             this.panelSoundSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'PanelSound') ||
                 this.accessory.addService(this.platform.Service.Switch, 'Panel Sound', 'PanelSound');
             this.panelSoundSwitch
-                .setCharacteristic(this.platform.Characteristic.Name, 'Panel Sound');
+                .setCharacteristic(this.platform.Characteristic.Name, 'Panel Sound')
+                .updateCharacteristic(this.platform.Characteristic.Name, 'Panel Sound');
             this.panelSoundSwitch
                 .getCharacteristic(this.platform.Characteristic.On)
                 .onSet(this.setPanelSound.bind(this))
@@ -160,7 +164,8 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
             this.displayLightSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'DisplayLight') ||
                 this.accessory.addService(this.platform.Service.Switch, `${deviceName} Display`, 'DisplayLight');
             this.displayLightSwitch
-                .setCharacteristic(this.platform.Characteristic.Name, 'Display Light');
+                .setCharacteristic(this.platform.Characteristic.Name, 'Display Light')
+                .updateCharacteristic(this.platform.Characteristic.Name, 'Display Light');
             this.displayLightSwitch
                 .getCharacteristic(this.platform.Characteristic.On)
                 .onSet(this.setDisplayLight.bind(this))
@@ -438,13 +443,17 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
             .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
             .updateValue(humidity);
         (_a = this.targetHumiditySensor) === null || _a === void 0 ? void 0 : _a.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity).updateValue(humidity);
-        this.platform.webHelper.control(this.sn, { rhautolevel: humidity });
+        this.scheduleTargetHumidityCommand(humidity);
         this.updateCurrentStateCharacteristic();
     }
     setRotationSpeed(value) {
         var _a;
         const numeric = (_a = this.toNumber(value)) !== null && _a !== void 0 ? _a : 0;
         if (numeric <= 0) {
+            if (this.fanSpeedDebounceTimer) {
+                clearTimeout(this.fanSpeedDebounceTimer);
+                this.fanSpeedDebounceTimer = undefined;
+            }
             this.setActive(false);
             return;
         }
@@ -460,10 +469,34 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         this.humidifierService
             .getCharacteristic(this.platform.Characteristic.RotationSpeed)
             .updateValue(this.getRotationSpeed());
-        this.platform.webHelper.control(this.sn, {
-            poweron: true,
-            windlevel: converted,
-        });
+        this.scheduleFanSpeedCommand(converted);
+    }
+    scheduleTargetHumidityCommand(value) {
+        this.pendingTargetHumidity = value;
+        if (this.targetHumidityDebounceTimer) {
+            clearTimeout(this.targetHumidityDebounceTimer);
+        }
+        this.targetHumidityDebounceTimer = setTimeout(() => {
+            if (this.pendingTargetHumidity !== undefined) {
+                this.platform.webHelper.control(this.sn, { rhautolevel: this.pendingTargetHumidity });
+            }
+            this.targetHumidityDebounceTimer = undefined;
+        }, this.COMMAND_DEBOUNCE_MS);
+    }
+    scheduleFanSpeedCommand(level) {
+        this.pendingFanLevel = level;
+        if (this.fanSpeedDebounceTimer) {
+            clearTimeout(this.fanSpeedDebounceTimer);
+        }
+        this.fanSpeedDebounceTimer = setTimeout(() => {
+            if (this.pendingFanLevel !== undefined) {
+                this.platform.webHelper.control(this.sn, {
+                    poweron: true,
+                    windlevel: this.pendingFanLevel,
+                });
+            }
+            this.fanSpeedDebounceTimer = undefined;
+        }, this.COMMAND_DEBOUNCE_MS);
     }
     setChildLock(value) {
         const enabled = this.toBoolean(value);
