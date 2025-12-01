@@ -33,6 +33,7 @@ type ContinuousMode = 1 | 2;
 export class DehumidifierAccessory extends BaseAccessory {
   private readonly humidifierService: Service;
   private readonly humiditySensor: Service;
+  private targetHumiditySensor?: Service;
   private temperatureSensor?: Service;
   private modeSwitch?: Service;
   private panelSoundSwitch?: Service;
@@ -189,9 +190,21 @@ export class DehumidifierAccessory extends BaseAccessory {
       this.accessory.removeService(existingTemperatureService);
     }
 
+    this.targetHumiditySensor = this.accessory.getServiceById(this.platform.Service.HumiditySensor, 'TargetHumidity') ||
+      this.accessory.addService(this.platform.Service.HumiditySensor, 'Target Humidity', 'TargetHumidity');
+
+    this.targetHumiditySensor
+      .setCharacteristic(this.platform.Characteristic.Name, 'Target Humidity');
+
+    this.targetHumiditySensor
+      .getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
+      .onGet(this.getTargetHumidity.bind(this));
+
     if (state.mode !== undefined) {
       this.modeSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'ContinuousMode') ||
         this.accessory.addService(this.platform.Service.Switch, 'Continuous Mode', 'ContinuousMode');
+      this.modeSwitch
+        .setCharacteristic(this.platform.Characteristic.Name, 'Continuous Mode');
       this.modeSwitch
         .getCharacteristic(this.platform.Characteristic.On)
         .onSet(this.setContinuousMode.bind(this))
@@ -202,6 +215,8 @@ export class DehumidifierAccessory extends BaseAccessory {
       this.panelSoundSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'PanelSound') ||
         this.accessory.addService(this.platform.Service.Switch, 'Panel Sound', 'PanelSound');
       this.panelSoundSwitch
+        .setCharacteristic(this.platform.Characteristic.Name, 'Panel Sound');
+      this.panelSoundSwitch
         .getCharacteristic(this.platform.Characteristic.On)
         .onSet(this.setPanelSound.bind(this))
         .onGet(this.getPanelSound.bind(this));
@@ -210,6 +225,8 @@ export class DehumidifierAccessory extends BaseAccessory {
     if (state.lighton !== undefined) {
       this.displayLightSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'DisplayLight') ||
         this.accessory.addService(this.platform.Service.Switch, `${deviceName} Display`, 'DisplayLight');
+      this.displayLightSwitch
+        .setCharacteristic(this.platform.Characteristic.Name, 'Display Light');
       this.displayLightSwitch
         .getCharacteristic(this.platform.Characteristic.On)
         .onSet(this.setDisplayLight.bind(this))
@@ -229,6 +246,9 @@ export class DehumidifierAccessory extends BaseAccessory {
       .updateValue(this.currState.humidity);
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
+      .updateValue(this.currState.targetHumidity);
+    this.targetHumiditySensor
+      ?.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
       .updateValue(this.currState.targetHumidity);
     if (this.supportsWindLevel) {
       this.humidifierService
@@ -298,6 +318,9 @@ export class DehumidifierAccessory extends BaseAccessory {
         this.currState.targetHumidity = this.clampTargetHumidity(value);
         this.humidifierService
           .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
+          .updateValue(this.currState.targetHumidity);
+        this.targetHumiditySensor
+          ?.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
           .updateValue(this.currState.targetHumidity);
         this.updateCurrentStateCharacteristic();
         break;
@@ -515,6 +538,9 @@ export class DehumidifierAccessory extends BaseAccessory {
     this.currState.targetHumidity = humidity;
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
+      .updateValue(humidity);
+    this.targetHumiditySensor
+      ?.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
       .updateValue(humidity);
     this.platform.webHelper.control(this.sn, { rhautolevel: humidity });
     this.updateCurrentStateCharacteristic();

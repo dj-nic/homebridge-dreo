@@ -129,9 +129,18 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         else if (hideTemperatureSensor && existingTemperatureService) {
             this.accessory.removeService(existingTemperatureService);
         }
+        this.targetHumiditySensor = this.accessory.getServiceById(this.platform.Service.HumiditySensor, 'TargetHumidity') ||
+            this.accessory.addService(this.platform.Service.HumiditySensor, 'Target Humidity', 'TargetHumidity');
+        this.targetHumiditySensor
+            .setCharacteristic(this.platform.Characteristic.Name, 'Target Humidity');
+        this.targetHumiditySensor
+            .getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
+            .onGet(this.getTargetHumidity.bind(this));
         if (state.mode !== undefined) {
             this.modeSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'ContinuousMode') ||
                 this.accessory.addService(this.platform.Service.Switch, 'Continuous Mode', 'ContinuousMode');
+            this.modeSwitch
+                .setCharacteristic(this.platform.Characteristic.Name, 'Continuous Mode');
             this.modeSwitch
                 .getCharacteristic(this.platform.Characteristic.On)
                 .onSet(this.setContinuousMode.bind(this))
@@ -141,6 +150,8 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
             this.panelSoundSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'PanelSound') ||
                 this.accessory.addService(this.platform.Service.Switch, 'Panel Sound', 'PanelSound');
             this.panelSoundSwitch
+                .setCharacteristic(this.platform.Characteristic.Name, 'Panel Sound');
+            this.panelSoundSwitch
                 .getCharacteristic(this.platform.Characteristic.On)
                 .onSet(this.setPanelSound.bind(this))
                 .onGet(this.getPanelSound.bind(this));
@@ -149,13 +160,15 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
             this.displayLightSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'DisplayLight') ||
                 this.accessory.addService(this.platform.Service.Switch, `${deviceName} Display`, 'DisplayLight');
             this.displayLightSwitch
+                .setCharacteristic(this.platform.Characteristic.Name, 'Display Light');
+            this.displayLightSwitch
                 .getCharacteristic(this.platform.Characteristic.On)
                 .onSet(this.setDisplayLight.bind(this))
                 .onGet(this.getDisplayLight.bind(this));
         }
     }
     refreshInitialCharacteristics() {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         this.humidifierService
             .getCharacteristic(this.platform.Characteristic.Active)
             .updateValue(this.currState.on);
@@ -168,6 +181,7 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         this.humidifierService
             .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
             .updateValue(this.currState.targetHumidity);
+        (_a = this.targetHumiditySensor) === null || _a === void 0 ? void 0 : _a.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity).updateValue(this.currState.targetHumidity);
         if (this.supportsWindLevel) {
             this.humidifierService
                 .getCharacteristic(this.platform.Characteristic.RotationSpeed)
@@ -178,9 +192,9 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
                 .getCharacteristic(this.platform.Characteristic.LockPhysicalControls)
                 .updateValue(this.getChildLock());
         }
-        (_a = this.modeSwitch) === null || _a === void 0 ? void 0 : _a.getCharacteristic(this.platform.Characteristic.On).updateValue(this.getContinuousMode());
-        (_b = this.panelSoundSwitch) === null || _b === void 0 ? void 0 : _b.getCharacteristic(this.platform.Characteristic.On).updateValue(this.getPanelSound());
-        (_c = this.displayLightSwitch) === null || _c === void 0 ? void 0 : _c.getCharacteristic(this.platform.Characteristic.On).updateValue(this.getDisplayLight());
+        (_b = this.modeSwitch) === null || _b === void 0 ? void 0 : _b.getCharacteristic(this.platform.Characteristic.On).updateValue(this.getContinuousMode());
+        (_c = this.panelSoundSwitch) === null || _c === void 0 ? void 0 : _c.getCharacteristic(this.platform.Characteristic.On).updateValue(this.getPanelSound());
+        (_d = this.displayLightSwitch) === null || _d === void 0 ? void 0 : _d.getCharacteristic(this.platform.Characteristic.On).updateValue(this.getDisplayLight());
         if (this.temperatureSensor && this.currState.temperature !== undefined) {
             this.temperatureSensor
                 .getCharacteristic(this.platform.Characteristic.CurrentTemperature)
@@ -212,7 +226,7 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         });
     }
     handleIncomingUpdate(key, value) {
-        var _a, _b, _c, _d, _e;
+        var _a, _b, _c, _d, _e, _f;
         switch (key) {
             case 'poweron':
                 this.currState.on = this.toBoolean(value);
@@ -232,6 +246,7 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
                 this.humidifierService
                     .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
                     .updateValue(this.currState.targetHumidity);
+                (_a = this.targetHumiditySensor) === null || _a === void 0 ? void 0 : _a.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity).updateValue(this.currState.targetHumidity);
                 this.updateCurrentStateCharacteristic();
                 break;
             case 'windlevel':
@@ -243,8 +258,8 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
                 }
                 break;
             case 'mode':
-                this.currState.mode = (_a = this.toNumber(value)) !== null && _a !== void 0 ? _a : this.currState.mode;
-                (_b = this.modeSwitch) === null || _b === void 0 ? void 0 : _b.getCharacteristic(this.platform.Characteristic.On).updateValue(this.getContinuousMode());
+                this.currState.mode = (_b = this.toNumber(value)) !== null && _b !== void 0 ? _b : this.currState.mode;
+                (_c = this.modeSwitch) === null || _c === void 0 ? void 0 : _c.getCharacteristic(this.platform.Characteristic.On).updateValue(this.getContinuousMode());
                 this.updateCurrentStateCharacteristic();
                 break;
             case 'childlockon':
@@ -257,18 +272,18 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
                 break;
             case 'lighton':
                 this.currState.displayLight = this.toBoolean(value);
-                (_c = this.displayLightSwitch) === null || _c === void 0 ? void 0 : _c.getCharacteristic(this.platform.Characteristic.On).updateValue(this.currState.displayLight);
+                (_d = this.displayLightSwitch) === null || _d === void 0 ? void 0 : _d.getCharacteristic(this.platform.Characteristic.On).updateValue(this.currState.displayLight);
                 break;
             case 'muteon':
                 this.currState.panelSound = !this.toBoolean(value);
-                (_d = this.panelSoundSwitch) === null || _d === void 0 ? void 0 : _d.getCharacteristic(this.platform.Characteristic.On).updateValue(this.currState.panelSound);
+                (_e = this.panelSoundSwitch) === null || _e === void 0 ? void 0 : _e.getCharacteristic(this.platform.Characteristic.On).updateValue(this.currState.panelSound);
                 break;
             case 'autoon':
                 this.currState.autoOn = this.toBoolean(value);
                 break;
             case 'temperature':
                 this.currState.temperature = this.toTemperature(value);
-                (_e = this.temperatureSensor) === null || _e === void 0 ? void 0 : _e.getCharacteristic(this.platform.Characteristic.CurrentTemperature).updateValue(this.getCurrentTemperature());
+                (_f = this.temperatureSensor) === null || _f === void 0 ? void 0 : _f.getCharacteristic(this.platform.Characteristic.CurrentTemperature).updateValue(this.getCurrentTemperature());
                 break;
             default:
                 this.platform.log.debug('Unhandled update key for %s: %s', this.sn, key);
@@ -416,11 +431,13 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         return this.currState.on;
     }
     setTargetHumidity(value) {
+        var _a;
         const humidity = this.clampTargetHumidity(value);
         this.currState.targetHumidity = humidity;
         this.humidifierService
             .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
             .updateValue(humidity);
+        (_a = this.targetHumiditySensor) === null || _a === void 0 ? void 0 : _a.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity).updateValue(humidity);
         this.platform.webHelper.control(this.sn, { rhautolevel: humidity });
         this.updateCurrentStateCharacteristic();
     }

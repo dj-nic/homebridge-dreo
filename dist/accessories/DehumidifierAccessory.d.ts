@@ -25,6 +25,7 @@ interface DreoDehumidifierState {
 export declare class DehumidifierAccessory extends BaseAccessory {
     private readonly humidifierService;
     private readonly humiditySensor;
+    private targetHumiditySensor?;
     private temperatureSensor?;
     private modeSwitch?;
     private panelSoundSwitch?;
