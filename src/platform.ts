@@ -200,8 +200,8 @@ export class DreoPlatform implements DynamicPlatformPlugin {
           new HumidifierAccessory(this, accessory, state);
           break;
         case 'DR-HDH':
-          // Dehumidifier
-          accessory.category = this.api.hap.Categories.DEHUMIDIFIER ?? this.api.hap.Categories.AIR_PURIFIER;
+          // Dehumidifier (HomeKit lacks a dedicated enum, reuse AIR_PURIFIER so it groups correctly)
+          accessory.category = this.api.hap.Categories.AIR_PURIFIER;
           new DehumidifierAccessory(this, accessory, state);
           break;
 
