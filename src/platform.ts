@@ -4,6 +4,7 @@ import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { FanAccessory } from './accessories/FanAccessory';
 import { HeaterAccessory } from './accessories/HeaterAccessory';
 import { HumidifierAccessory } from './accessories/HumidifierAccessory';
+import { DehumidifierAccessory } from './accessories/DehumidifierAccessory';
 import DreoAPI from './DreoAPI';
 
 /**
@@ -162,6 +163,7 @@ export class DreoPlatform implements DynamicPlatformPlugin {
         'WH',      // Heater
         'DR-HAC',  // Air Conditioner
         'DR-HHM',  // Humidifier
+        'DR-HDH',  // Dehumidifier
       ];
 
       // Find the matching prefix
@@ -196,6 +198,11 @@ export class DreoPlatform implements DynamicPlatformPlugin {
           // Humidifier
           accessory.category = this.api.hap.Categories.AIR_HUMIDIFIER;
           new HumidifierAccessory(this, accessory, state);
+          break;
+        case 'DR-HDH':
+          // Dehumidifier
+          accessory.category = this.api.hap.Categories.DEHUMIDIFIER ?? this.api.hap.Categories.AIR_PURIFIER;
+          new DehumidifierAccessory(this, accessory, state);
           break;
 
         default:

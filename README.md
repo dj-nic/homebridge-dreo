@@ -55,6 +55,9 @@ Homebridge plugin for Dreo brand smart devices. [Dreo Fans on Amazon](https://ww
 #### Humidifiers
 * DR-HM713S
 
+#### Dehumidifiers
+* DR-HDH002S
+
 Please open an issue if you have another model that works or doesn't work. If you have another device type and can help me test some code out I would definitely be open to adding support.
 
 ## Supported Features
@@ -101,6 +104,16 @@ Please open an issue if you have another model that works or doesn't work. If yo
 #### Sensors
 * **Humidity Sensor:** Displays current humidity sensor reading.
 * **Water Level Sensor:** It's a binary sensor. Displays 100% if the Humidifier has any water in the tank. If no water, it will display 0%. Dero humidifiers do not have a water level sensor.
+
+### Dehumidifiers
+
+* **Active Control:** Toggle the DR-HDH002S on or off from HomeKit while keeping the live state in sync.
+* **Humidity Readings:** Current humidity is exposed both on the main tile and a dedicated humidity sensor.
+* **Target Humidity:** Adjust the drying target between 30% and 85% using the built-in slider.
+* **Fan Speed:** The Rotation Speed slider maps to the Low/Medium/High fan levels and automatically powers on the unit when needed.
+* **Mode Switch:** A "Continuous Mode" switch lets you jump between Auto drying and Continuous mode.
+* **Child Lock / Panel Sound / Display:** Child lock is mapped to the Lock Physical Controls characteristic, and dedicated switches control the panel sound and front display.
+* **Temperature Sensor:** When the global temperature sensor option is enabled, the dehumidifier also exposes its onboard temperature reading (auto-converted to °C for HomeKit).
 
 ## Installation
 
