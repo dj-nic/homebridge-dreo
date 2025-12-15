@@ -85,7 +85,7 @@ export class DehumidifierAccessory extends BaseAccessory {
 
     this.humiditySensor =
       this.accessory.getService(this.platform.Service.HumiditySensor) ||
-      this.accessory.addService(this.platform.Service.HumiditySensor, 'Humidity Sensor');
+      this.accessory.addService(this.platform.Service.HumiditySensor, 'Current Humidity');
 
     this.configureHumidifierService(deviceName, state);
     this.configureAuxiliaryServices(state, deviceName);
@@ -195,16 +195,23 @@ export class DehumidifierAccessory extends BaseAccessory {
       this.accessory.removeService(existingTemperatureService);
     }
 
-    this.targetHumiditySensor = this.accessory.getServiceById(this.platform.Service.HumiditySensor, 'TargetHumidity') ||
-      this.accessory.addService(this.platform.Service.HumiditySensor, 'Target Humidity', 'TargetHumidity');
+    const existingTargetHumidityService = this.accessory.getServiceById(this.platform.Service.HumiditySensor, 'TargetHumidity');
+    const hideTargetHumiditySensor = this.platform.config.hideTargetHumiditySensor || false;
 
-    this.targetHumiditySensor
-      .setCharacteristic(this.platform.Characteristic.Name, 'Target Humidity')
-      .updateCharacteristic(this.platform.Characteristic.Name, 'Target Humidity');
+    if (!hideTargetHumiditySensor) {
+      this.targetHumiditySensor = existingTargetHumidityService ||
+        this.accessory.addService(this.platform.Service.HumiditySensor, 'Target Humidity', 'TargetHumidity');
 
-    this.targetHumiditySensor
-      .getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
-      .onGet(this.getTargetHumidity.bind(this));
+      this.targetHumiditySensor
+        .setCharacteristic(this.platform.Characteristic.Name, 'Target Humidity')
+        .updateCharacteristic(this.platform.Characteristic.Name, 'Target Humidity');
+
+      this.targetHumiditySensor
+        .getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
+        .onGet(this.getTargetHumidity.bind(this));
+    } else if (hideTargetHumiditySensor && existingTargetHumidityService) {
+      this.accessory.removeService(existingTargetHumidityService);
+    }
 
     if (state.mode !== undefined) {
       this.modeSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'ContinuousMode') ||

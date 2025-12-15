@@ -108,8 +108,8 @@ Please open an issue if you have another model that works or doesn't work. If yo
 ### Dehumidifiers
 
 * **Active Control:** Toggle the DR-HDH002S on or off from HomeKit while keeping the live state in sync.
-* **Humidity Readings:** Current humidity is exposed both on the main tile and a dedicated humidity sensor.
-* **Target Humidity:** Adjust the drying target between 30% and 85% using the slider, and read back the exact setpoint via a separate “Target Humidity” sensor tile.
+* **Humidity Readings:** Current humidity is exposed both on the main tile and a dedicated "Current Humidity" sensor.
+* **Target Humidity:** Adjust the drying target between 30% and 85% using the slider, and read back the exact setpoint via a separate “Target Humidity” sensor tile (this sensor can be hidden via the `hideTargetHumiditySensor` config option).
 * **Fan Speed:** The Rotation Speed slider maps to the Low/Medium/High fan levels and automatically powers on the unit when needed.
 * **Gentle Slider Updates:** Target humidity and fan speed commands are debounced, so HomeKit can be dragged smoothly without spamming the Dreo API—only the final value after a short pause gets sent.
 * **Mode Switch:** The clearly-labeled “Continuous Mode” switch lets you jump between Auto drying (off) and Continuous mode (on).
@@ -137,6 +137,7 @@ Provide your Dreo app login credentials
     },
     "hideTemperatureSensor": false,
     "temperatureOffset": 0,
+    "hideTargetHumiditySensor": false,
     "name": "Dreo Platform",
     "platform": "DreoPlatform"
   }

@@ -49,6 +49,12 @@
         },
         "default": 0,
         "description": "Subtract (or add) a set amount from the temperature reading (use negative numbers to subtract). This setting only applies to fans."
+      },
+      "hideTargetHumiditySensor": {
+        "title": "Hide Dehumidifier Target Humidity Sensor",
+        "type": "boolean",
+        "default": false,
+        "description": "Enable this option to hide the separate target humidity sensor for dehumidifiers. The target humidity will still be accessible through the main dehumidifier service."
       }
     }
   },
@@ -67,6 +73,13 @@
       "items": [
         "hideTemperatureSensor",
         "temperatureOffset"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Dehumidifier Sensors",
+      "items": [
+        "hideTargetHumiditySensor"
       ]
     }
   ]
