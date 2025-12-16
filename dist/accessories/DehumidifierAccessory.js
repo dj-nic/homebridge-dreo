@@ -18,7 +18,6 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
             mode: this.MODE_AUTO,
             fanLevel: 1,
             maxFanLevel: 3,
-            childLock: false,
             displayLight: false,
             panelSound: true,
             autoOn: false,
@@ -26,7 +25,6 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         };
         this.initializeStateFromSnapshot(state);
         this.supportsWindLevel = state.windlevel !== undefined;
-        this.supportsChildLock = state.childlockon !== undefined;
         const deviceName = accessory.context.device.deviceName || 'Dehumidifier';
         this.humidifierService =
             this.accessory.getService(this.platform.Service.HumidifierDehumidifier) ||
@@ -40,18 +38,17 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         this.registerWebSocketListener();
     }
     initializeStateFromSnapshot(state) {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
         this.currState.on = this.toBoolean((_b = (_a = state.poweron) === null || _a === void 0 ? void 0 : _a.state) !== null && _b !== void 0 ? _b : false);
         this.currState.mode = (_d = this.toNumber((_c = state.mode) === null || _c === void 0 ? void 0 : _c.state)) !== null && _d !== void 0 ? _d : this.MODE_AUTO;
         this.currState.humidity = this.normalizeHumidity((_f = (_e = state.rh) === null || _e === void 0 ? void 0 : _e.state) !== null && _f !== void 0 ? _f : (_g = state.humidity) === null || _g === void 0 ? void 0 : _g.state);
         this.currState.targetHumidity = this.clampTargetHumidity((_h = state.rhautolevel) === null || _h === void 0 ? void 0 : _h.state);
         this.currState.maxFanLevel = this.determineMaxFanLevel(state);
         this.currState.fanLevel = this.toValidFanLevel(this.toNumber((_j = state.windlevel) === null || _j === void 0 ? void 0 : _j.state));
-        this.currState.childLock = this.toBoolean((_l = (_k = state.childlockon) === null || _k === void 0 ? void 0 : _k.state) !== null && _l !== void 0 ? _l : false);
-        this.currState.displayLight = this.toBoolean((_o = (_m = state.lighton) === null || _m === void 0 ? void 0 : _m.state) !== null && _o !== void 0 ? _o : false);
-        this.currState.panelSound = !this.toBoolean((_q = (_p = state.muteon) === null || _p === void 0 ? void 0 : _p.state) !== null && _q !== void 0 ? _q : false);
-        this.currState.autoOn = this.toBoolean((_s = (_r = state.autoon) === null || _r === void 0 ? void 0 : _r.state) !== null && _s !== void 0 ? _s : this.currState.mode === this.MODE_AUTO);
-        this.currState.temperature = this.toTemperature((_t = state.temperature) === null || _t === void 0 ? void 0 : _t.state);
+        this.currState.displayLight = this.toBoolean((_l = (_k = state.lighton) === null || _k === void 0 ? void 0 : _k.state) !== null && _l !== void 0 ? _l : false);
+        this.currState.panelSound = !this.toBoolean((_o = (_m = state.muteon) === null || _m === void 0 ? void 0 : _m.state) !== null && _o !== void 0 ? _o : false);
+        this.currState.autoOn = this.toBoolean((_q = (_p = state.autoon) === null || _p === void 0 ? void 0 : _p.state) !== null && _q !== void 0 ? _q : this.currState.mode === this.MODE_AUTO);
+        this.currState.temperature = this.toTemperature((_r = state.temperature) === null || _r === void 0 ? void 0 : _r.state);
     }
     configureHumidifierService(deviceName, snapshot) {
         this.humidifierService.setCharacteristic(this.platform.Characteristic.Name, deviceName);
@@ -109,12 +106,6 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
             })
                 .onSet(this.setRotationSpeed.bind(this))
                 .onGet(this.getRotationSpeed.bind(this));
-        }
-        if (this.supportsChildLock) {
-            this.humidifierService
-                .getCharacteristic(this.platform.Characteristic.LockPhysicalControls)
-                .onSet(this.setChildLock.bind(this))
-                .onGet(this.getChildLock.bind(this));
         }
     }
     configureAuxiliaryServices(state, deviceName) {
@@ -199,11 +190,6 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
                 .getCharacteristic(this.platform.Characteristic.RotationSpeed)
                 .updateValue(this.getRotationSpeed());
         }
-        if (this.supportsChildLock) {
-            this.humidifierService
-                .getCharacteristic(this.platform.Characteristic.LockPhysicalControls)
-                .updateValue(this.getChildLock());
-        }
         (_b = this.modeSwitch) === null || _b === void 0 ? void 0 : _b.getCharacteristic(this.platform.Characteristic.On).updateValue(this.getContinuousMode());
         (_c = this.panelSoundSwitch) === null || _c === void 0 ? void 0 : _c.getCharacteristic(this.platform.Characteristic.On).updateValue(this.getPanelSound());
         (_d = this.displayLightSwitch) === null || _d === void 0 ? void 0 : _d.getCharacteristic(this.platform.Characteristic.On).updateValue(this.getDisplayLight());
@@ -273,14 +259,6 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
                 this.currState.mode = (_b = this.toNumber(value)) !== null && _b !== void 0 ? _b : this.currState.mode;
                 (_c = this.modeSwitch) === null || _c === void 0 ? void 0 : _c.getCharacteristic(this.platform.Characteristic.On).updateValue(this.getContinuousMode());
                 this.updateCurrentStateCharacteristic();
-                break;
-            case 'childlockon':
-                if (this.supportsChildLock) {
-                    this.currState.childLock = this.toBoolean(value);
-                    this.humidifierService
-                        .getCharacteristic(this.platform.Characteristic.LockPhysicalControls)
-                        .updateValue(this.getChildLock());
-                }
                 break;
             case 'lighton':
                 this.currState.displayLight = this.toBoolean(value);
@@ -424,9 +402,6 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
     getDisplayLight() {
         return this.currState.displayLight;
     }
-    getChildLock() {
-        return this.currState.childLock;
-    }
     setActive(value) {
         const isActive = this.toBoolean(value);
         if (this.currState.on === isActive) {
@@ -504,14 +479,6 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
             }
             this.fanSpeedDebounceTimer = undefined;
         }, this.COMMAND_DEBOUNCE_MS);
-    }
-    setChildLock(value) {
-        const enabled = this.toBoolean(value);
-        this.currState.childLock = enabled;
-        this.humidifierService
-            .getCharacteristic(this.platform.Characteristic.LockPhysicalControls)
-            .updateValue(this.getChildLock());
-        this.platform.webHelper.control(this.sn, { childlockon: Number(enabled) });
     }
     setContinuousMode(value) {
         var _a;

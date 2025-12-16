@@ -16,7 +16,6 @@ interface DreoDehumidifierState {
     humidity?: DreoNumericState;
     rhautolevel?: DreoNumericState;
     windlevel?: DreoNumericState;
-    childlockon?: DreoBooleanState;
     lighton?: DreoBooleanState;
     muteon?: DreoBooleanState;
     autoon?: DreoBooleanState;
@@ -31,7 +30,6 @@ export declare class DehumidifierAccessory extends BaseAccessory {
     private panelSoundSwitch?;
     private displayLightSwitch?;
     private readonly supportsWindLevel;
-    private readonly supportsChildLock;
     private targetHumidityDebounceTimer?;
     private fanSpeedDebounceTimer?;
     private pendingTargetHumidity?;
@@ -68,14 +66,12 @@ export declare class DehumidifierAccessory extends BaseAccessory {
     private getContinuousMode;
     private getPanelSound;
     private getDisplayLight;
-    private getChildLock;
     setActive(value: any): void;
     getActive(): boolean;
     private setTargetHumidity;
     private setRotationSpeed;
     private scheduleTargetHumidityCommand;
     private scheduleFanSpeedCommand;
-    private setChildLock;
     private setContinuousMode;
     private setPanelSound;
     private setDisplayLight;
