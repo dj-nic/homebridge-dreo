@@ -109,9 +109,9 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         }
     }
     configureAuxiliaryServices(state, deviceName) {
-        var _a, _b;
+        var _a, _b, _c;
         const existingTemperatureService = this.accessory.getService(this.platform.Service.TemperatureSensor);
-        const hideTemperatureSensor = this.platform.config.hideTemperatureSensor || false;
+        const hideTemperatureSensor = (_a = this.platform.config.hideTemperatureSensor) !== null && _a !== void 0 ? _a : false;
         if (!hideTemperatureSensor && state.temperature !== undefined) {
             this.temperatureSensor = existingTemperatureService ||
                 this.accessory.addService(this.platform.Service.TemperatureSensor, 'Temperature Sensor');
@@ -123,7 +123,7 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
             this.accessory.removeService(existingTemperatureService);
         }
         const existingTargetHumidityService = this.accessory.getServiceById(this.platform.Service.HumiditySensor, 'TargetHumidity');
-        const hideTargetHumiditySensor = (_a = this.platform.config.hideTargetHumiditySensor) !== null && _a !== void 0 ? _a : true;
+        const hideTargetHumiditySensor = (_b = this.platform.config.hideTargetHumiditySensor) !== null && _b !== void 0 ? _b : true;
         if (!hideTargetHumiditySensor) {
             this.targetHumiditySensor = existingTargetHumidityService ||
                 this.accessory.addService(this.platform.Service.HumiditySensor, 'Target Humidity', 'TargetHumidity');
@@ -149,7 +149,7 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
                 .onGet(this.getContinuousMode.bind(this));
         }
         const existingPanelSoundSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'PanelSound');
-        const hidePanelSoundSwitch = (_b = this.platform.config.hidePanelSoundSwitch) !== null && _b !== void 0 ? _b : true;
+        const hidePanelSoundSwitch = (_c = this.platform.config.hidePanelSoundSwitch) !== null && _c !== void 0 ? _c : true;
         if (state.muteon !== undefined && !hidePanelSoundSwitch) {
             this.panelSoundSwitch = existingPanelSoundSwitch ||
                 this.accessory.addService(this.platform.Service.Switch, 'Panel Sound', 'PanelSound');

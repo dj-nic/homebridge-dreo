@@ -170,7 +170,7 @@ export class DehumidifierAccessory extends BaseAccessory {
 
   private configureAuxiliaryServices(state: DreoDehumidifierState, deviceName: string) {
     const existingTemperatureService = this.accessory.getService(this.platform.Service.TemperatureSensor);
-    const hideTemperatureSensor = this.platform.config.hideTemperatureSensor || false;
+    const hideTemperatureSensor = this.platform.config.hideTemperatureSensor ?? false;
 
     if (!hideTemperatureSensor && state.temperature !== undefined) {
       this.temperatureSensor = existingTemperatureService ||
@@ -214,7 +214,7 @@ export class DehumidifierAccessory extends BaseAccessory {
     }
 
     const existingPanelSoundSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'PanelSound');
-    const hidePanelSoundSwitch = this.platform.config.hidePanelSoundSwitch || false;
+    const hidePanelSoundSwitch = this.platform.config.hidePanelSoundSwitch ?? true;
 
     if (state.muteon !== undefined && !hidePanelSoundSwitch) {
       this.panelSoundSwitch = existingPanelSoundSwitch ||
