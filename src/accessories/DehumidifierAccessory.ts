@@ -19,7 +19,6 @@ interface DreoDehumidifierState {
   humidity?: DreoNumericState;
   rhautolevel?: DreoNumericState;
   windlevel?: DreoNumericState;
-  childlockon?: DreoBooleanState;
   lighton?: DreoBooleanState;
   muteon?: DreoBooleanState;
   autoon?: DreoBooleanState;
@@ -39,7 +38,6 @@ export class DehumidifierAccessory extends BaseAccessory {
   private panelSoundSwitch?: Service;
   private displayLightSwitch?: Service;
   private readonly supportsWindLevel: boolean;
-  private readonly supportsChildLock: boolean;
   private targetHumidityDebounceTimer?: NodeJS.Timeout;
   private fanSpeedDebounceTimer?: NodeJS.Timeout;
   private pendingTargetHumidity?: number;
@@ -59,7 +57,6 @@ export class DehumidifierAccessory extends BaseAccessory {
     mode: this.MODE_AUTO as ContinuousMode,
     fanLevel: 1,
     maxFanLevel: 3,
-    childLock: false,
     displayLight: false,
     panelSound: true,
     autoOn: false,
@@ -75,7 +72,6 @@ export class DehumidifierAccessory extends BaseAccessory {
 
     this.initializeStateFromSnapshot(state);
     this.supportsWindLevel = state.windlevel !== undefined;
-    this.supportsChildLock = state.childlockon !== undefined;
 
     const deviceName = accessory.context.device.deviceName || 'Dehumidifier';
 
@@ -100,7 +96,6 @@ export class DehumidifierAccessory extends BaseAccessory {
   this.currState.targetHumidity = this.clampTargetHumidity(state.rhautolevel?.state);
   this.currState.maxFanLevel = this.determineMaxFanLevel(state);
   this.currState.fanLevel = this.toValidFanLevel(this.toNumber(state.windlevel?.state));
-    this.currState.childLock = this.toBoolean(state.childlockon?.state ?? false);
     this.currState.displayLight = this.toBoolean(state.lighton?.state ?? false);
     this.currState.panelSound = !this.toBoolean(state.muteon?.state ?? false);
     this.currState.autoOn = this.toBoolean(state.autoon?.state ?? this.currState.mode === this.MODE_AUTO);
@@ -171,18 +166,11 @@ export class DehumidifierAccessory extends BaseAccessory {
         .onSet(this.setRotationSpeed.bind(this))
         .onGet(this.getRotationSpeed.bind(this));
     }
-
-  if (this.supportsChildLock) {
-      this.humidifierService
-        .getCharacteristic(this.platform.Characteristic.LockPhysicalControls)
-        .onSet(this.setChildLock.bind(this))
-        .onGet(this.getChildLock.bind(this));
-    }
   }
 
   private configureAuxiliaryServices(state: DreoDehumidifierState, deviceName: string) {
     const existingTemperatureService = this.accessory.getService(this.platform.Service.TemperatureSensor);
-    const hideTemperatureSensor = this.platform.config.hideTemperatureSensor || false;
+    const hideTemperatureSensor = this.platform.config.hideTemperatureSensor ?? false;
 
     if (!hideTemperatureSensor && state.temperature !== undefined) {
       this.temperatureSensor = existingTemperatureService ||
@@ -196,7 +184,7 @@ export class DehumidifierAccessory extends BaseAccessory {
     }
 
     const existingTargetHumidityService = this.accessory.getServiceById(this.platform.Service.HumiditySensor, 'TargetHumidity');
-    const hideTargetHumiditySensor = this.platform.config.hideTargetHumiditySensor || false;
+    const hideTargetHumiditySensor = this.platform.config.hideTargetHumiditySensor ?? true;
 
     if (!hideTargetHumiditySensor) {
       this.targetHumiditySensor = existingTargetHumidityService ||
@@ -225,8 +213,11 @@ export class DehumidifierAccessory extends BaseAccessory {
         .onGet(this.getContinuousMode.bind(this));
     }
 
-    if (state.muteon !== undefined) {
-      this.panelSoundSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'PanelSound') ||
+    const existingPanelSoundSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'PanelSound');
+    const hidePanelSoundSwitch = this.platform.config.hidePanelSoundSwitch ?? true;
+
+    if (state.muteon !== undefined && !hidePanelSoundSwitch) {
+      this.panelSoundSwitch = existingPanelSoundSwitch ||
         this.accessory.addService(this.platform.Service.Switch, 'Panel Sound', 'PanelSound');
       this.panelSoundSwitch
         .setCharacteristic(this.platform.Characteristic.Name, 'Panel Sound')
@@ -235,6 +226,8 @@ export class DehumidifierAccessory extends BaseAccessory {
         .getCharacteristic(this.platform.Characteristic.On)
         .onSet(this.setPanelSound.bind(this))
         .onGet(this.getPanelSound.bind(this));
+    } else if (hidePanelSoundSwitch && existingPanelSoundSwitch) {
+      this.accessory.removeService(existingPanelSoundSwitch);
     }
 
     if (state.lighton !== undefined) {
@@ -270,11 +263,6 @@ export class DehumidifierAccessory extends BaseAccessory {
       this.humidifierService
         .getCharacteristic(this.platform.Characteristic.RotationSpeed)
         .updateValue(this.getRotationSpeed());
-    }
-    if (this.supportsChildLock) {
-      this.humidifierService
-        .getCharacteristic(this.platform.Characteristic.LockPhysicalControls)
-        .updateValue(this.getChildLock());
     }
     this.modeSwitch?.getCharacteristic(this.platform.Characteristic.On)
       .updateValue(this.getContinuousMode());
@@ -353,14 +341,6 @@ export class DehumidifierAccessory extends BaseAccessory {
         this.modeSwitch?.getCharacteristic(this.platform.Characteristic.On)
           .updateValue(this.getContinuousMode());
         this.updateCurrentStateCharacteristic();
-        break;
-      case 'childlockon':
-        if (this.supportsChildLock) {
-          this.currState.childLock = this.toBoolean(value);
-          this.humidifierService
-            .getCharacteristic(this.platform.Characteristic.LockPhysicalControls)
-            .updateValue(this.getChildLock());
-        }
         break;
       case 'lighton':
         this.currState.displayLight = this.toBoolean(value);
@@ -528,10 +508,6 @@ export class DehumidifierAccessory extends BaseAccessory {
     return this.currState.displayLight;
   }
 
-  private getChildLock() {
-    return this.currState.childLock;
-  }
-
   setActive(value) {
     const isActive = this.toBoolean(value as RawReportedValue);
     if (this.currState.on === isActive) {
@@ -620,15 +596,6 @@ export class DehumidifierAccessory extends BaseAccessory {
       }
       this.fanSpeedDebounceTimer = undefined;
     }, this.COMMAND_DEBOUNCE_MS);
-  }
-
-  private setChildLock(value: unknown) {
-    const enabled = this.toBoolean(value as RawReportedValue);
-    this.currState.childLock = enabled;
-    this.humidifierService
-      .getCharacteristic(this.platform.Characteristic.LockPhysicalControls)
-      .updateValue(this.getChildLock());
-    this.platform.webHelper.control(this.sn, { childlockon: Number(enabled) });
   }
 
   private setContinuousMode(value: unknown) {
