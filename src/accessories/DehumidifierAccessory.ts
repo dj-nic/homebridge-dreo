@@ -214,7 +214,7 @@ export class DehumidifierAccessory extends BaseAccessory {
     }
 
     const existingPanelSoundSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'PanelSound');
-    const hidePanelSoundSwitch = this.platform.config.hidePanelSoundSwitch ?? true;
+    const hidePanelSoundSwitch = this.platform.config.hidePanelSoundSwitch || false;
 
     if (state.muteon !== undefined && !hidePanelSoundSwitch) {
       this.panelSoundSwitch = existingPanelSoundSwitch ||
