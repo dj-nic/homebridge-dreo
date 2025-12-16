@@ -109,6 +109,7 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         }
     }
     configureAuxiliaryServices(state, deviceName) {
+        var _a;
         const existingTemperatureService = this.accessory.getService(this.platform.Service.TemperatureSensor);
         const hideTemperatureSensor = this.platform.config.hideTemperatureSensor || false;
         if (!hideTemperatureSensor && state.temperature !== undefined) {
@@ -122,7 +123,7 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
             this.accessory.removeService(existingTemperatureService);
         }
         const existingTargetHumidityService = this.accessory.getServiceById(this.platform.Service.HumiditySensor, 'TargetHumidity');
-        const hideTargetHumiditySensor = this.platform.config.hideTargetHumiditySensor || false;
+        const hideTargetHumiditySensor = (_a = this.platform.config.hideTargetHumiditySensor) !== null && _a !== void 0 ? _a : true;
         if (!hideTargetHumiditySensor) {
             this.targetHumiditySensor = existingTargetHumidityService ||
                 this.accessory.addService(this.platform.Service.HumiditySensor, 'Target Humidity', 'TargetHumidity');

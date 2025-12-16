@@ -184,7 +184,7 @@ export class DehumidifierAccessory extends BaseAccessory {
     }
 
     const existingTargetHumidityService = this.accessory.getServiceById(this.platform.Service.HumiditySensor, 'TargetHumidity');
-    const hideTargetHumiditySensor = this.platform.config.hideTargetHumiditySensor || false;
+    const hideTargetHumiditySensor = this.platform.config.hideTargetHumiditySensor ?? true;
 
     if (!hideTargetHumiditySensor) {
       this.targetHumiditySensor = existingTargetHumidityService ||
