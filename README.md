@@ -113,7 +113,7 @@ Please open an issue if you have another model that works or doesn't work. If yo
 * **Fan Speed:** The Rotation Speed slider maps to the Low/Medium/High fan levels and automatically powers on the unit when needed.
 * **Gentle Slider Updates:** Target humidity and fan speed commands are debounced, so HomeKit can be dragged smoothly without spamming the Dreo API—only the final value after a short pause gets sent.
 * **Mode Switch:** The clearly-labeled “Continuous Mode” switch lets you jump between Auto drying (off) and Continuous mode (on).
-* **Panel Sound / Display:** Dedicated switches labelled "Panel Sound" and "Display Light" control the device buzzer and on-device display.
+* **Panel Sound / Display:** The "Panel Sound" switch (hidden by default, can be shown by setting `hidePanelSoundSwitch: false` in the config) controls the device buzzer, and the "Display Light" switch controls the on-device display.
 * **Temperature Sensor:** When the global temperature sensor option is enabled, the dehumidifier also exposes its onboard temperature reading (auto-converted to °C for HomeKit).
 
 ## Installation

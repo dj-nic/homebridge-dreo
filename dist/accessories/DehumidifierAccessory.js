@@ -109,7 +109,7 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         }
     }
     configureAuxiliaryServices(state, deviceName) {
-        var _a;
+        var _a, _b;
         const existingTemperatureService = this.accessory.getService(this.platform.Service.TemperatureSensor);
         const hideTemperatureSensor = this.platform.config.hideTemperatureSensor || false;
         if (!hideTemperatureSensor && state.temperature !== undefined) {
@@ -148,8 +148,10 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
                 .onSet(this.setContinuousMode.bind(this))
                 .onGet(this.getContinuousMode.bind(this));
         }
-        if (state.muteon !== undefined) {
-            this.panelSoundSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'PanelSound') ||
+        const existingPanelSoundSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'PanelSound');
+        const hidePanelSoundSwitch = (_b = this.platform.config.hidePanelSoundSwitch) !== null && _b !== void 0 ? _b : true;
+        if (state.muteon !== undefined && !hidePanelSoundSwitch) {
+            this.panelSoundSwitch = existingPanelSoundSwitch ||
                 this.accessory.addService(this.platform.Service.Switch, 'Panel Sound', 'PanelSound');
             this.panelSoundSwitch
                 .setCharacteristic(this.platform.Characteristic.Name, 'Panel Sound')
@@ -158,6 +160,9 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
                 .getCharacteristic(this.platform.Characteristic.On)
                 .onSet(this.setPanelSound.bind(this))
                 .onGet(this.getPanelSound.bind(this));
+        }
+        else if (hidePanelSoundSwitch && existingPanelSoundSwitch) {
+            this.accessory.removeService(existingPanelSoundSwitch);
         }
         if (state.lighton !== undefined) {
             this.displayLightSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'DisplayLight') ||
