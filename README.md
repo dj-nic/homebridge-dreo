@@ -138,6 +138,7 @@ Provide your Dreo app login credentials
     "hideTemperatureSensor": false,
     "temperatureOffset": 0,
     "hideTargetHumiditySensor": false,
+    "hidePanelSoundSwitch": false,
     "name": "Dreo Platform",
     "platform": "DreoPlatform"
   }
