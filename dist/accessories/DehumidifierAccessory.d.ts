@@ -26,7 +26,6 @@ export declare class DehumidifierAccessory extends BaseAccessory {
     private readonly humiditySensor;
     private targetHumiditySensor?;
     private temperatureSensor?;
-    private modeSwitch?;
     private panelSoundSwitch?;
     private displayLightSwitch?;
     private readonly supportsWindLevel;
@@ -63,16 +62,16 @@ export declare class DehumidifierAccessory extends BaseAccessory {
     private getTargetHumidity;
     private getCurrentTemperature;
     private getRotationSpeed;
-    private getContinuousMode;
+    private getTargetHumidifierDehumidifierState;
     private getPanelSound;
     private getDisplayLight;
     setActive(value: any): void;
     getActive(): boolean;
+    private setTargetHumidifierDehumidifierState;
     private setTargetHumidity;
     private setRotationSpeed;
     private scheduleTargetHumidityCommand;
     private scheduleFanSpeedCommand;
-    private setContinuousMode;
     private setPanelSound;
     private setDisplayLight;
 }
