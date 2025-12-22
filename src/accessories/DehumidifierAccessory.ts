@@ -135,8 +135,8 @@ export class DehumidifierAccessory extends BaseAccessory {
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.TargetHumidifierDehumidifierState)
       .setProps({
-        minValue: this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER,
-        maxValue: this.platform.Characteristic.TargetHumidifierDehumidifierState.DEHUMIDIFIER,
+        minValue: this.platform.Characteristic.TargetHumidifierDehumidifierState.DEHUMIDIFIER,
+        maxValue: this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER,
         validValues: [
           this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER,
           this.platform.Characteristic.TargetHumidifierDehumidifierState.DEHUMIDIFIER,
