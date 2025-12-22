@@ -77,6 +77,17 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         })
             .onSet(this.setTargetHumidity.bind(this))
             .onGet(this.getTargetHumidity.bind(this));
+        // Home sometimes uses the HUMIDIFIER threshold in AUTOMATIC mode.
+        // Keep both thresholds in sync to prevent the slider from snapping back or showing 0%.
+        this.humidifierService
+            .getCharacteristic(this.platform.Characteristic.RelativeHumidityHumidifierThreshold)
+            .setProps({
+            minValue: this.HUMIDITY_MIN,
+            maxValue: this.HUMIDITY_MAX,
+            minStep: 1,
+        })
+            .onSet(this.setTargetHumidity.bind(this))
+            .onGet(this.getTargetHumidity.bind(this));
         this.humidifierService
             .getCharacteristic(this.platform.Characteristic.TargetHumidifierDehumidifierState)
             .setProps({
@@ -183,6 +194,9 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         this.humidifierService
             .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
             .updateValue(this.currState.targetHumidity);
+        this.humidifierService
+            .getCharacteristic(this.platform.Characteristic.RelativeHumidityHumidifierThreshold)
+            .updateValue(this.currState.targetHumidity);
         (_a = this.targetHumiditySensor) === null || _a === void 0 ? void 0 : _a.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity).updateValue(this.currState.targetHumidity);
         if (this.supportsWindLevel) {
             this.humidifierService
@@ -241,6 +255,9 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
                 this.currState.targetHumidity = this.clampTargetHumidity(value);
                 this.humidifierService
                     .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
+                    .updateValue(this.currState.targetHumidity);
+                this.humidifierService
+                    .getCharacteristic(this.platform.Characteristic.RelativeHumidityHumidifierThreshold)
                     .updateValue(this.currState.targetHumidity);
                 (_a = this.targetHumiditySensor) === null || _a === void 0 ? void 0 : _a.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity).updateValue(this.currState.targetHumidity);
                 this.updateCurrentStateCharacteristic();
@@ -462,6 +479,9 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         this.currState.targetHumidity = humidity;
         this.humidifierService
             .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
+            .updateValue(humidity);
+        this.humidifierService
+            .getCharacteristic(this.platform.Characteristic.RelativeHumidityHumidifierThreshold)
             .updateValue(humidity);
         (_a = this.targetHumiditySensor) === null || _a === void 0 ? void 0 : _a.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity).updateValue(humidity);
         // Target humidity is only meaningful in Auto mode for many devices.
