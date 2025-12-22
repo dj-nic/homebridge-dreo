@@ -69,18 +69,6 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         })
             .onGet(this.getCurrentDehumidifierState.bind(this));
         this.humidifierService
-            .getCharacteristic(this.platform.Characteristic.TargetHumidifierDehumidifierState)
-            .setProps({
-            minValue: this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER,
-            maxValue: this.platform.Characteristic.TargetHumidifierDehumidifierState.DEHUMIDIFIER,
-            validValues: [
-                this.platform.Characteristic.TargetHumidifierDehumidifierState.DEHUMIDIFIER,
-                this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER,
-            ],
-        })
-            .onSet(this.setTargetHumidifierDehumidifierState.bind(this))
-            .onGet(this.getTargetHumidifierDehumidifierState.bind(this));
-        this.humidifierService
             .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
             .setProps({
             minValue: this.HUMIDITY_MIN,
@@ -89,6 +77,18 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         })
             .onSet(this.setTargetHumidity.bind(this))
             .onGet(this.getTargetHumidity.bind(this));
+        this.humidifierService
+            .getCharacteristic(this.platform.Characteristic.TargetHumidifierDehumidifierState)
+            .setProps({
+            minValue: this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER,
+            maxValue: this.platform.Characteristic.TargetHumidifierDehumidifierState.DEHUMIDIFIER,
+            validValues: [
+                this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER,
+                this.platform.Characteristic.TargetHumidifierDehumidifierState.DEHUMIDIFIER,
+            ],
+        })
+            .onSet(this.setTargetHumidifierDehumidifierState.bind(this))
+            .onGet(this.getTargetHumidifierDehumidifierState.bind(this));
         this.humidifierService
             .getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
             .onGet(this.getCurrentHumidity.bind(this));
@@ -396,10 +396,11 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
     }
     getTargetHumidifierDehumidifierState() {
         // Map device mode to HomeKit dropdown.
-        // We use DEHUMIDIFIER for Auto, HUMIDIFIER for Continuous.
+        // - Auto => AUTOMATIC (0)
+        // - Continuous => DEHUMIDIFIER (2)
         return this.currState.mode === this.MODE_CONTINUOUS
-            ? this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER
-            : this.platform.Characteristic.TargetHumidifierDehumidifierState.DEHUMIDIFIER;
+            ? this.platform.Characteristic.TargetHumidifierDehumidifierState.DEHUMIDIFIER
+            : this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER;
     }
     getPanelSound() {
         return this.currState.panelSound;
@@ -427,8 +428,16 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         if (numeric === undefined) {
             return;
         }
-        const isContinuous = numeric === this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER;
-        const nextMode = isContinuous ? this.MODE_CONTINUOUS : this.MODE_AUTO;
+        let nextMode;
+        if (numeric === this.platform.Characteristic.TargetHumidifierDehumidifierState.DEHUMIDIFIER) {
+            nextMode = this.MODE_CONTINUOUS;
+        }
+        else if (numeric === this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER) {
+            nextMode = this.MODE_AUTO;
+        }
+        else {
+            return;
+        }
         if (this.currState.mode === nextMode) {
             return;
         }
