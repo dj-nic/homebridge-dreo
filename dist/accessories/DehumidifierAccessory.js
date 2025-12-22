@@ -342,7 +342,14 @@ class DehumidifierAccessory extends BaseAccessory_1.BaseAccessory {
         if (num === undefined) {
             return this.HUMIDITY_DEFAULT;
         }
-        const rounded = Math.round(num);
+        // HomeKit clients should respect min/max props, but iOS sometimes sends values as a
+        // delta within the configured range (e.g. 0..(max-min)) after prop changes/caching.
+        // Example: with 30..85, iOS may send 0..55. Translate those to absolute percent.
+        let rounded = Math.round(num);
+        const span = this.HUMIDITY_MAX - this.HUMIDITY_MIN;
+        if (rounded >= 0 && rounded <= span && rounded < this.HUMIDITY_MIN) {
+            rounded = this.HUMIDITY_MIN + rounded;
+        }
         return Math.min(this.HUMIDITY_MAX, Math.max(this.HUMIDITY_MIN, rounded));
     }
     determineMaxFanLevel(state) {
