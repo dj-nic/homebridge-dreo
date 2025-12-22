@@ -569,6 +569,22 @@ export class DehumidifierAccessory extends BaseAccessory {
     this.targetHumiditySensor
       ?.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
       .updateValue(humidity);
+
+    // Target humidity is only meaningful in Auto mode for many devices.
+    // If the user adjusts the slider, ensure the device is on and in Auto.
+    if (!this.currState.on) {
+      this.currState.on = true;
+      this.humidifierService
+        .getCharacteristic(this.platform.Characteristic.Active)
+        .updateValue(this.currState.on);
+    }
+    if (this.currState.mode !== this.MODE_AUTO) {
+      this.currState.mode = this.MODE_AUTO;
+      this.humidifierService
+        .getCharacteristic(this.platform.Characteristic.TargetHumidifierDehumidifierState)
+        .updateValue(this.getTargetHumidifierDehumidifierState());
+    }
+
     this.scheduleTargetHumidityCommand(humidity);
     this.updateCurrentStateCharacteristic();
   }
@@ -611,7 +627,11 @@ export class DehumidifierAccessory extends BaseAccessory {
     }
     this.targetHumidityDebounceTimer = setTimeout(() => {
       if (this.pendingTargetHumidity !== undefined) {
-        this.platform.webHelper.control(this.sn, { rhautolevel: this.pendingTargetHumidity });
+        this.platform.webHelper.control(this.sn, {
+          poweron: true,
+          mode: this.MODE_AUTO,
+          rhautolevel: this.pendingTargetHumidity,
+        });
       }
       this.targetHumidityDebounceTimer = undefined;
     }, this.COMMAND_DEBOUNCE_MS);
