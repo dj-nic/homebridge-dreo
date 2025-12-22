@@ -123,6 +123,16 @@ export class DehumidifierAccessory extends BaseAccessory {
       .onGet(this.getCurrentDehumidifierState.bind(this));
 
     this.humidifierService
+      .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
+      .setProps({
+        minValue: this.HUMIDITY_MIN,
+        maxValue: this.HUMIDITY_MAX,
+        minStep: 1,
+      })
+      .onSet(this.setTargetHumidity.bind(this))
+      .onGet(this.getTargetHumidity.bind(this));
+
+    this.humidifierService
       .getCharacteristic(this.platform.Characteristic.TargetHumidifierDehumidifierState)
       .setProps({
         minValue: this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER,
@@ -134,16 +144,6 @@ export class DehumidifierAccessory extends BaseAccessory {
       })
       .onSet(this.setTargetHumidifierDehumidifierState.bind(this))
       .onGet(this.getTargetHumidifierDehumidifierState.bind(this));
-
-    this.humidifierService
-      .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
-      .setProps({
-        minValue: this.HUMIDITY_MIN,
-        maxValue: this.HUMIDITY_MAX,
-        minStep: 1,
-      })
-      .onSet(this.setTargetHumidity.bind(this))
-      .onGet(this.getTargetHumidity.bind(this));
 
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
