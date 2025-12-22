@@ -125,11 +125,11 @@ export class DehumidifierAccessory extends BaseAccessory {
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.TargetHumidifierDehumidifierState)
       .setProps({
-        minValue: this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER,
+        minValue: this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER,
         maxValue: this.platform.Characteristic.TargetHumidifierDehumidifierState.DEHUMIDIFIER,
         validValues: [
+          this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER,
           this.platform.Characteristic.TargetHumidifierDehumidifierState.DEHUMIDIFIER,
-          this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER,
         ],
       })
       .onSet(this.setTargetHumidifierDehumidifierState.bind(this))
@@ -490,10 +490,10 @@ export class DehumidifierAccessory extends BaseAccessory {
 
   private getTargetHumidifierDehumidifierState() {
     // Map device mode to HomeKit dropdown.
-    // We use DEHUMIDIFIER for Auto, HUMIDIFIER for Continuous.
+    // We use HUMIDIFIER_OR_DEHUMIDIFIER for Auto, DEHUMIDIFIER for Continuous.
     return this.currState.mode === this.MODE_CONTINUOUS
-      ? this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER
-      : this.platform.Characteristic.TargetHumidifierDehumidifierState.DEHUMIDIFIER;
+      ? this.platform.Characteristic.TargetHumidifierDehumidifierState.DEHUMIDIFIER
+      : this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER_OR_DEHUMIDIFIER;
   }
 
   private getPanelSound() {
@@ -528,7 +528,7 @@ export class DehumidifierAccessory extends BaseAccessory {
     }
 
     const isContinuous =
-      numeric === this.platform.Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER;
+      numeric === this.platform.Characteristic.TargetHumidifierDehumidifierState.DEHUMIDIFIER;
     const nextMode = isContinuous ? this.MODE_CONTINUOUS : this.MODE_AUTO;
     if (this.currState.mode === nextMode) {
       return;
