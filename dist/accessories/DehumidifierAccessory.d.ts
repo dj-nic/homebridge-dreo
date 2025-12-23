@@ -39,7 +39,8 @@ export declare class DehumidifierAccessory extends BaseAccessory {
     private readonly HUMIDITY_DEFAULT;
     private readonly MODE_AUTO;
     private readonly MODE_CONTINUOUS;
-    private homeKitTargetHumidityDeltaMode;
+    private readonly HOMEKIT_HUMIDITY_MIN;
+    private readonly HOMEKIT_HUMIDITY_MAX;
     private currState;
     constructor(platform: DreoPlatform, accessory: PlatformAccessory, state: DreoDehumidifierState);
     private initializeStateFromSnapshot;
@@ -54,6 +55,9 @@ export declare class DehumidifierAccessory extends BaseAccessory {
     private toNumber;
     private normalizeHumidity;
     private clampTargetHumidity;
+    private clampHomeKitTargetHumidity;
+    private homeKitTargetHumidityToDevice;
+    private deviceTargetHumidityToHomeKit;
     private determineMaxFanLevel;
     private toValidFanLevel;
     private toTemperature;
@@ -61,6 +65,8 @@ export declare class DehumidifierAccessory extends BaseAccessory {
     private getCurrentDehumidifierState;
     private getCurrentHumidity;
     private getTargetHumidity;
+    private getTargetHumidityDevice;
+    private getTargetHumidityHomeKit;
     private getCurrentTemperature;
     private getRotationSpeed;
     private getTargetHumidifierDehumidifierState;

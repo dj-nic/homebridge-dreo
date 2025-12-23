@@ -49,9 +49,11 @@ export class DehumidifierAccessory extends BaseAccessory {
   private readonly MODE_AUTO: ContinuousMode = 1;
   private readonly MODE_CONTINUOUS: ContinuousMode = 2;
 
-  // Some iOS clients can temporarily send target humidity as a delta within the configured
-  // range (0..(max-min)) instead of absolute percent. Once detected, we translate inputs.
-  private homeKitTargetHumidityDeltaMode = false;
+  // Home.app often renders Humidifier/Dehumidifier thresholds as a 0..100% slider.
+  // To keep the UI usable and predictable, we expose 0..100 to HomeKit and map
+  // internally to the device range (HUMIDITY_MIN..HUMIDITY_MAX).
+  private readonly HOMEKIT_HUMIDITY_MIN = 0;
+  private readonly HOMEKIT_HUMIDITY_MAX = 100;
 
   private currState = {
     on: false,
@@ -129,24 +131,24 @@ export class DehumidifierAccessory extends BaseAccessory {
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
       .setProps({
-        minValue: this.HUMIDITY_MIN,
-        maxValue: this.HUMIDITY_MAX,
+        minValue: this.HOMEKIT_HUMIDITY_MIN,
+        maxValue: this.HOMEKIT_HUMIDITY_MAX,
         minStep: 1,
       })
       .onSet(this.setTargetHumidity.bind(this))
-      .onGet(this.getTargetHumidity.bind(this));
+      .onGet(this.getTargetHumidityHomeKit.bind(this));
 
     // Home sometimes uses the HUMIDIFIER threshold in AUTOMATIC mode.
     // Keep both thresholds in sync to prevent the slider from snapping back or showing 0%.
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.RelativeHumidityHumidifierThreshold)
       .setProps({
-        minValue: this.HUMIDITY_MIN,
-        maxValue: this.HUMIDITY_MAX,
+        minValue: this.HOMEKIT_HUMIDITY_MIN,
+        maxValue: this.HOMEKIT_HUMIDITY_MAX,
         minStep: 1,
       })
       .onSet(this.setTargetHumidity.bind(this))
-      .onGet(this.getTargetHumidity.bind(this));
+      .onGet(this.getTargetHumidityHomeKit.bind(this));
 
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.TargetHumidifierDehumidifierState)
@@ -211,7 +213,7 @@ export class DehumidifierAccessory extends BaseAccessory {
 
       this.targetHumiditySensor
         .getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
-        .onGet(this.getTargetHumidity.bind(this));
+        .onGet(this.getTargetHumidityDevice.bind(this));
     } else if (hideTargetHumiditySensor && existingTargetHumidityService) {
       this.accessory.removeService(existingTargetHumidityService);
     }
@@ -263,10 +265,10 @@ export class DehumidifierAccessory extends BaseAccessory {
       .updateValue(this.currState.humidity);
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
-      .updateValue(this.currState.targetHumidity);
+      .updateValue(this.deviceTargetHumidityToHomeKit(this.currState.targetHumidity));
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.RelativeHumidityHumidifierThreshold)
-      .updateValue(this.currState.targetHumidity);
+      .updateValue(this.deviceTargetHumidityToHomeKit(this.currState.targetHumidity));
     this.targetHumiditySensor
       ?.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
       .updateValue(this.currState.targetHumidity);
@@ -329,12 +331,13 @@ export class DehumidifierAccessory extends BaseAccessory {
         break;
       case 'rhautolevel':
         this.currState.targetHumidity = this.clampTargetHumidity(value);
+        const homeKitTarget = this.deviceTargetHumidityToHomeKit(this.currState.targetHumidity);
         this.humidifierService
           .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
-          .updateValue(this.currState.targetHumidity);
+          .updateValue(homeKitTarget);
         this.humidifierService
           .getCharacteristic(this.platform.Characteristic.RelativeHumidityHumidifierThreshold)
-          .updateValue(this.currState.targetHumidity);
+          .updateValue(homeKitTarget);
         this.targetHumiditySensor
           ?.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
           .updateValue(this.currState.targetHumidity);
@@ -430,16 +433,27 @@ export class DehumidifierAccessory extends BaseAccessory {
       return this.HUMIDITY_DEFAULT;
     }
 
-    // HomeKit clients should respect min/max props, but iOS sometimes sends values as a
-    // delta within the configured range (e.g. 0..(max-min)) after prop changes/caching.
-    // Example: with 30..85, iOS may send 0..55. Translate those to absolute percent.
-    let rounded = Math.round(num);
-    const span = this.HUMIDITY_MAX - this.HUMIDITY_MIN;
-    if (rounded >= 0 && rounded <= span && rounded < this.HUMIDITY_MIN) {
-      rounded = this.HUMIDITY_MIN + rounded;
-    }
-
+    const rounded = Math.round(num);
     return Math.min(this.HUMIDITY_MAX, Math.max(this.HUMIDITY_MIN, rounded));
+  }
+
+  private clampHomeKitTargetHumidity(value: number): number {
+    const rounded = Math.round(value);
+    return Math.min(this.HOMEKIT_HUMIDITY_MAX, Math.max(this.HOMEKIT_HUMIDITY_MIN, rounded));
+  }
+
+  private homeKitTargetHumidityToDevice(value: number): number {
+    const clamped = this.clampHomeKitTargetHumidity(value);
+    const span = this.HUMIDITY_MAX - this.HUMIDITY_MIN;
+    const deviceValue = this.HUMIDITY_MIN + (clamped / this.HOMEKIT_HUMIDITY_MAX) * span;
+    return this.clampTargetHumidity(deviceValue);
+  }
+
+  private deviceTargetHumidityToHomeKit(value: number): number {
+    const clamped = Math.min(this.HUMIDITY_MAX, Math.max(this.HUMIDITY_MIN, Math.round(value)));
+    const span = this.HUMIDITY_MAX - this.HUMIDITY_MIN;
+    const ratio = span > 0 ? (clamped - this.HUMIDITY_MIN) / span : 0;
+    return this.clampHomeKitTargetHumidity(ratio * this.HOMEKIT_HUMIDITY_MAX);
   }
 
   private determineMaxFanLevel(state: DreoDehumidifierState): number {
@@ -509,6 +523,14 @@ export class DehumidifierAccessory extends BaseAccessory {
 
   private getTargetHumidity() {
     return this.currState.targetHumidity;
+  }
+
+  private getTargetHumidityDevice() {
+    return this.currState.targetHumidity;
+  }
+
+  private getTargetHumidityHomeKit() {
+    return this.deviceTargetHumidityToHomeKit(this.currState.targetHumidity);
   }
 
   private getCurrentTemperature() {
@@ -597,30 +619,18 @@ export class DehumidifierAccessory extends BaseAccessory {
       return;
     }
 
-    let rounded = Math.round(raw);
-    const span = this.HUMIDITY_MAX - this.HUMIDITY_MIN;
-
-    // Detect delta-mode when we ever receive a value below the configured minimum.
-    // Example: min=30 max=85 => delta range is 0..55.
-    if (rounded >= 0 && rounded <= span && rounded < this.HUMIDITY_MIN) {
-      this.homeKitTargetHumidityDeltaMode = true;
-    }
-
-    if (this.homeKitTargetHumidityDeltaMode && rounded >= 0 && rounded <= span) {
-      rounded = this.HUMIDITY_MIN + rounded;
-    }
-
-    const humidity = Math.min(this.HUMIDITY_MAX, Math.max(this.HUMIDITY_MIN, rounded));
-    this.currState.targetHumidity = humidity;
+    const deviceHumidity = this.homeKitTargetHumidityToDevice(raw);
+    const homeKitTarget = this.deviceTargetHumidityToHomeKit(deviceHumidity);
+    this.currState.targetHumidity = deviceHumidity;
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
-      .updateValue(humidity);
+      .updateValue(homeKitTarget);
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.RelativeHumidityHumidifierThreshold)
-      .updateValue(humidity);
+      .updateValue(homeKitTarget);
     this.targetHumiditySensor
       ?.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
-      .updateValue(humidity);
+      .updateValue(deviceHumidity);
 
     // Target humidity is only meaningful in Auto mode for many devices.
     // If the user adjusts the slider, ensure the device is on and in Auto.
@@ -637,7 +647,7 @@ export class DehumidifierAccessory extends BaseAccessory {
         .updateValue(this.getTargetHumidifierDehumidifierState());
     }
 
-    this.scheduleTargetHumidityCommand(humidity);
+    this.scheduleTargetHumidityCommand(deviceHumidity);
     this.updateCurrentStateCharacteristic();
   }
 
