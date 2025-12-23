@@ -49,6 +49,10 @@ export class DehumidifierAccessory extends BaseAccessory {
   private readonly MODE_AUTO: ContinuousMode = 1;
   private readonly MODE_CONTINUOUS: ContinuousMode = 2;
 
+  // Some iOS clients can temporarily send target humidity as a delta within the configured
+  // range (0..(max-min)) instead of absolute percent. Once detected, we translate inputs.
+  private homeKitTargetHumidityDeltaMode = false;
+
   private currState = {
     on: false,
     humidity: this.HUMIDITY_DEFAULT,
@@ -588,7 +592,25 @@ export class DehumidifierAccessory extends BaseAccessory {
   }
 
   private setTargetHumidity(value: unknown) {
-    const humidity = this.clampTargetHumidity(value as RawReportedValue);
+    const raw = this.toNumber(value as RawReportedValue);
+    if (raw === undefined) {
+      return;
+    }
+
+    let rounded = Math.round(raw);
+    const span = this.HUMIDITY_MAX - this.HUMIDITY_MIN;
+
+    // Detect delta-mode when we ever receive a value below the configured minimum.
+    // Example: min=30 max=85 => delta range is 0..55.
+    if (rounded >= 0 && rounded <= span && rounded < this.HUMIDITY_MIN) {
+      this.homeKitTargetHumidityDeltaMode = true;
+    }
+
+    if (this.homeKitTargetHumidityDeltaMode && rounded >= 0 && rounded <= span) {
+      rounded = this.HUMIDITY_MIN + rounded;
+    }
+
+    const humidity = Math.min(this.HUMIDITY_MAX, Math.max(this.HUMIDITY_MIN, rounded));
     this.currState.targetHumidity = humidity;
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)

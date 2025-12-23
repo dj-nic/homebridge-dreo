@@ -39,6 +39,7 @@ export declare class DehumidifierAccessory extends BaseAccessory {
     private readonly HUMIDITY_DEFAULT;
     private readonly MODE_AUTO;
     private readonly MODE_CONTINUOUS;
+    private homeKitTargetHumidityDeltaMode;
     private currState;
     constructor(platform: DreoPlatform, accessory: PlatformAccessory, state: DreoDehumidifierState);
     private initializeStateFromSnapshot;
