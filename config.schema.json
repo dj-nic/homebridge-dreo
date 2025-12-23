@@ -55,6 +55,18 @@
         "type": "boolean",
         "default": false,
         "description": "Enable this option to hide the separate target humidity sensor for dehumidifiers. The target humidity will still be accessible through the main dehumidifier service."
+      },
+      "showDisplayLight": {
+        "title": "Show Dehumidifier Display Control",
+        "type": "boolean",
+        "default": false,
+        "description": "Show a HomeKit light tile to toggle the dehumidifier display on/off."
+      },
+      "showPanelSoundSwitch": {
+        "title": "Show Dehumidifier Beep Switch",
+        "type": "boolean",
+        "default": false,
+        "description": "Show a switch to enable/disable the device beeps (if supported by the model)."
       }
     }
   },
@@ -79,7 +91,9 @@
       "type": "fieldset",
       "title": "Dehumidifier Sensors",
       "items": [
-        "hideTargetHumiditySensor"
+        "hideTargetHumiditySensor",
+        "showDisplayLight",
+        "showPanelSoundSwitch"
       ]
     }
   ]

@@ -224,32 +224,49 @@ export class DehumidifierAccessory extends BaseAccessory {
     }
 
     const existingPanelSoundSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'PanelSound');
-    const hidePanelSoundSwitch = this.platform.config.hidePanelSoundSwitch ?? true;
+    const showPanelSoundSwitch = this.platform.config.showPanelSoundSwitch ?? !(this.platform.config.hidePanelSoundSwitch ?? true);
 
-    if (state.muteon !== undefined && !hidePanelSoundSwitch) {
+    if (state.muteon !== undefined && showPanelSoundSwitch) {
+      const beepName = `${deviceName} Beep`;
       this.panelSoundSwitch = existingPanelSoundSwitch ||
-        this.accessory.addService(this.platform.Service.Switch, 'Panel Sound', 'PanelSound');
+        this.accessory.addService(this.platform.Service.Switch, beepName, 'PanelSound');
       this.panelSoundSwitch
-        .setCharacteristic(this.platform.Characteristic.Name, 'Panel Sound')
-        .updateCharacteristic(this.platform.Characteristic.Name, 'Panel Sound');
+        .setCharacteristic(this.platform.Characteristic.Name, beepName)
+        .updateCharacteristic(this.platform.Characteristic.Name, beepName);
       this.panelSoundSwitch
         .getCharacteristic(this.platform.Characteristic.On)
         .onSet(this.setPanelSound.bind(this))
         .onGet(this.getPanelSound.bind(this));
-    } else if (hidePanelSoundSwitch && existingPanelSoundSwitch) {
+    } else if (!showPanelSoundSwitch && existingPanelSoundSwitch) {
       this.accessory.removeService(existingPanelSoundSwitch);
     }
 
-    if (state.lighton !== undefined) {
-      this.displayLightSwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'DisplayLight') ||
-        this.accessory.addService(this.platform.Service.Switch, `${deviceName} Display`, 'DisplayLight');
+    const existingDisplaySwitch = this.accessory.getServiceById(this.platform.Service.Switch, 'DisplayLight');
+    const existingDisplayLight = this.accessory.getServiceById(this.platform.Service.Lightbulb, 'DisplayLight');
+    const showDisplayLight = this.platform.config.showDisplayLight ?? false;
+
+    if (state.lighton !== undefined && showDisplayLight) {
+      const displayName = `${deviceName} Display`;
+      if (existingDisplaySwitch) {
+        this.accessory.removeService(existingDisplaySwitch);
+      }
+      this.displayLightSwitch = existingDisplayLight ||
+        this.accessory.addService(this.platform.Service.Lightbulb, displayName, 'DisplayLight');
       this.displayLightSwitch
-        .setCharacteristic(this.platform.Characteristic.Name, 'Display Light')
-        .updateCharacteristic(this.platform.Characteristic.Name, 'Display Light');
+        .setCharacteristic(this.platform.Characteristic.Name, displayName)
+        .updateCharacteristic(this.platform.Characteristic.Name, displayName);
       this.displayLightSwitch
         .getCharacteristic(this.platform.Characteristic.On)
         .onSet(this.setDisplayLight.bind(this))
         .onGet(this.getDisplayLight.bind(this));
+    } else {
+      if (existingDisplaySwitch) {
+        this.accessory.removeService(existingDisplaySwitch);
+      }
+      if (existingDisplayLight) {
+        this.accessory.removeService(existingDisplayLight);
+      }
+      this.displayLightSwitch = undefined;
     }
   }
 
