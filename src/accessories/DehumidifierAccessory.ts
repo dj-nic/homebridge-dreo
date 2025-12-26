@@ -128,8 +128,9 @@ export class DehumidifierAccessory extends BaseAccessory {
       })
       .onGet(this.getCurrentDehumidifierState.bind(this));
 
-    this.humidifierService
-      .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
+    const dehumThreshold = this.humidifierService
+      .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold);
+    dehumThreshold
       .setProps({
         minValue: this.HOMEKIT_HUMIDITY_MIN,
         maxValue: this.HOMEKIT_HUMIDITY_MAX,
@@ -137,11 +138,16 @@ export class DehumidifierAccessory extends BaseAccessory {
       })
       .onSet(this.setTargetHumidity.bind(this))
       .onGet(this.getTargetHumidityHomeKit.bind(this));
+    // Defensive: some HAP/HomeKit combos can end up with 0/undefined props.
+    dehumThreshold.props.minValue = this.HOMEKIT_HUMIDITY_MIN;
+    dehumThreshold.props.maxValue = this.HOMEKIT_HUMIDITY_MAX;
+    dehumThreshold.props.minStep = 1;
 
     // Home sometimes uses the HUMIDIFIER threshold in AUTOMATIC mode.
     // Keep both thresholds in sync to prevent the slider from snapping back or showing 0%.
-    this.humidifierService
-      .getCharacteristic(this.platform.Characteristic.RelativeHumidityHumidifierThreshold)
+    const humThreshold = this.humidifierService
+      .getCharacteristic(this.platform.Characteristic.RelativeHumidityHumidifierThreshold);
+    humThreshold
       .setProps({
         minValue: this.HOMEKIT_HUMIDITY_MIN,
         maxValue: this.HOMEKIT_HUMIDITY_MAX,
@@ -149,6 +155,20 @@ export class DehumidifierAccessory extends BaseAccessory {
       })
       .onSet(this.setTargetHumidity.bind(this))
       .onGet(this.getTargetHumidityHomeKit.bind(this));
+    humThreshold.props.minValue = this.HOMEKIT_HUMIDITY_MIN;
+    humThreshold.props.maxValue = this.HOMEKIT_HUMIDITY_MAX;
+    humThreshold.props.minStep = 1;
+
+    this.platform.log.debug(
+      '[%s] Humidity threshold props: dehum(min=%s max=%s step=%s) hum(min=%s max=%s step=%s)',
+      this.sn,
+      dehumThreshold.props.minValue,
+      dehumThreshold.props.maxValue,
+      dehumThreshold.props.minStep,
+      humThreshold.props.minValue,
+      humThreshold.props.maxValue,
+      humThreshold.props.minStep,
+    );
 
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.TargetHumidifierDehumidifierState)
