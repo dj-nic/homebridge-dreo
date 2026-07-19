@@ -38,6 +38,7 @@ export class DehumidifierAccessory extends BaseAccessory {
   private displayLightSwitch?: Service;
   private readonly supportsWindLevel: boolean;
   private targetHumidityDebounceTimer?: NodeJS.Timeout;
+  private targetHumidityCorrectionTimer?: NodeJS.Timeout;
   private fanSpeedDebounceTimer?: NodeJS.Timeout;
   private pendingTargetHumidity?: number;
   private pendingFanLevel?: number;
@@ -46,6 +47,8 @@ export class DehumidifierAccessory extends BaseAccessory {
   private readonly HUMIDITY_MIN = 30;
   private readonly HUMIDITY_MAX = 85;
   private readonly HUMIDITY_DEFAULT = 50;
+  private readonly HOMEKIT_HUMIDITY_MIN = 0;
+  private readonly HOMEKIT_HUMIDITY_MAX = 100;
   private readonly MODE_AUTO: ContinuousMode = 1;
   private readonly MODE_CONTINUOUS: ContinuousMode = 2;
 
@@ -126,8 +129,10 @@ export class DehumidifierAccessory extends BaseAccessory {
       .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold);
     dehumThreshold
       .setProps({
-        minValue: this.HUMIDITY_MIN,
-        maxValue: this.HUMIDITY_MAX,
+        // Accept the full Home slider so the plugin can correct unsupported
+        // values without HAP rejecting them as "No Response" before onSet.
+        minValue: this.HOMEKIT_HUMIDITY_MIN,
+        maxValue: this.HOMEKIT_HUMIDITY_MAX,
         minStep: 1,
       })
       .onSet(this.setTargetHumidity.bind(this))
@@ -139,8 +144,8 @@ export class DehumidifierAccessory extends BaseAccessory {
       .getCharacteristic(this.platform.Characteristic.RelativeHumidityHumidifierThreshold);
     humThreshold
       .setProps({
-        minValue: this.HUMIDITY_MIN,
-        maxValue: this.HUMIDITY_MAX,
+        minValue: this.HOMEKIT_HUMIDITY_MIN,
+        maxValue: this.HOMEKIT_HUMIDITY_MAX,
         minStep: 1,
       })
       .onSet(this.setTargetHumidity.bind(this))
@@ -281,10 +286,10 @@ export class DehumidifierAccessory extends BaseAccessory {
       .updateValue(this.currState.humidity);
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
-      .updateValue(this.currState.targetHumidity);
+      .updateValue(this.getTargetHumidity());
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.RelativeHumidityHumidifierThreshold)
-      .updateValue(this.currState.targetHumidity);
+      .updateValue(this.getTargetHumidity());
     this.targetHumiditySensor
       ?.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
       .updateValue(this.currState.targetHumidity);
@@ -347,12 +352,8 @@ export class DehumidifierAccessory extends BaseAccessory {
         break;
       case 'rhautolevel':
         this.currState.targetHumidity = this.clampTargetHumidity(value);
-        this.humidifierService
-          .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
-          .updateValue(this.currState.targetHumidity);
-        this.humidifierService
-          .getCharacteristic(this.platform.Characteristic.RelativeHumidityHumidifierThreshold)
-          .updateValue(this.currState.targetHumidity);
+        this.cancelTargetHumidityCorrection();
+        this.updateTargetHumidityThresholds(this.getTargetHumidity());
         this.targetHumiditySensor
           ?.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
           .updateValue(this.currState.targetHumidity);
@@ -368,9 +369,14 @@ export class DehumidifierAccessory extends BaseAccessory {
         break;
       case 'mode':
         this.currState.mode = (this.toNumber(value) as ContinuousMode) ?? this.currState.mode;
+        if (this.currState.mode === this.MODE_CONTINUOUS) {
+          this.cancelPendingTargetHumidityCommand();
+        }
+        this.cancelTargetHumidityCorrection();
         this.humidifierService
           .getCharacteristic(this.platform.Characteristic.TargetHumidifierDehumidifierState)
           .updateValue(this.getTargetHumidifierDehumidifierState());
+        this.updateTargetHumidityThresholds(this.getTargetHumidity());
         this.updateCurrentStateCharacteristic();
         break;
       case 'lighton':
@@ -518,7 +524,9 @@ export class DehumidifierAccessory extends BaseAccessory {
   }
 
   private getTargetHumidity() {
-    return this.currState.targetHumidity;
+    return this.currState.mode === this.MODE_CONTINUOUS
+      ? this.HUMIDITY_MIN
+      : this.currState.targetHumidity;
   }
 
   private getCurrentTemperature() {
@@ -585,6 +593,10 @@ export class DehumidifierAccessory extends BaseAccessory {
     }
 
     this.currState.mode = nextMode;
+    if (nextMode === this.MODE_CONTINUOUS) {
+      this.cancelPendingTargetHumidityCommand();
+    }
+    this.cancelTargetHumidityCorrection();
     const command: Record<string, number | boolean> = { mode: nextMode };
     if (!this.currState.on) {
       this.currState.on = true;
@@ -597,6 +609,7 @@ export class DehumidifierAccessory extends BaseAccessory {
     this.humidifierService
       .getCharacteristic(this.platform.Characteristic.TargetHumidifierDehumidifierState)
       .updateValue(this.getTargetHumidifierDehumidifierState());
+    this.updateTargetHumidityThresholds(this.getTargetHumidity());
     this.platform.webHelper.control(this.sn, command);
     this.updateCurrentStateCharacteristic();
   }
@@ -607,35 +620,74 @@ export class DehumidifierAccessory extends BaseAccessory {
       return;
     }
 
+    // Continuous mode does not use a humidity target. Keep the Home slider at
+    // the minimum and do not let a slider gesture switch the device to Auto.
+    if (this.currState.mode === this.MODE_CONTINUOUS) {
+      this.cancelPendingTargetHumidityCommand();
+      this.scheduleTargetHumidityCorrection(this.HUMIDITY_MIN);
+      return;
+    }
+
+    // A cached HomeKit configuration may still allow values below the device
+    // minimum. Correct the UI locally without sending an invalid device command.
+    if (raw < this.HUMIDITY_MIN || raw > this.HUMIDITY_MAX) {
+      this.cancelPendingTargetHumidityCommand();
+      const correctedValue = raw < this.HUMIDITY_MIN ? this.HUMIDITY_MIN : this.HUMIDITY_MAX;
+      this.scheduleTargetHumidityCorrection(correctedValue);
+      return;
+    }
+
+    this.cancelTargetHumidityCorrection();
     const targetHumidity = this.clampTargetHumidity(raw);
     this.currState.targetHumidity = targetHumidity;
-    this.humidifierService
-      .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
-      .updateValue(targetHumidity);
-    this.humidifierService
-      .getCharacteristic(this.platform.Characteristic.RelativeHumidityHumidifierThreshold)
-      .updateValue(targetHumidity);
+    this.updateTargetHumidityThresholds(targetHumidity);
     this.targetHumiditySensor
       ?.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
       .updateValue(targetHumidity);
 
-    // Target humidity is only meaningful in Auto mode for many devices.
-    // If the user adjusts the slider, ensure the device is on and in Auto.
+    // A target humidity is only meaningful in Auto mode. Continuous mode was
+    // handled above, so a valid write here may power on an inactive device.
     if (!this.currState.on) {
       this.currState.on = true;
       this.humidifierService
         .getCharacteristic(this.platform.Characteristic.Active)
         .updateValue(this.currState.on);
     }
-    if (this.currState.mode !== this.MODE_AUTO) {
-      this.currState.mode = this.MODE_AUTO;
-      this.humidifierService
-        .getCharacteristic(this.platform.Characteristic.TargetHumidifierDehumidifierState)
-        .updateValue(this.getTargetHumidifierDehumidifierState());
-    }
 
     this.scheduleTargetHumidityCommand(targetHumidity);
     this.updateCurrentStateCharacteristic();
+  }
+
+  private updateTargetHumidityThresholds(value: number) {
+    this.humidifierService
+      .getCharacteristic(this.platform.Characteristic.RelativeHumidityDehumidifierThreshold)
+      .updateValue(value);
+    this.humidifierService
+      .getCharacteristic(this.platform.Characteristic.RelativeHumidityHumidifierThreshold)
+      .updateValue(value);
+  }
+
+  private cancelPendingTargetHumidityCommand() {
+    if (this.targetHumidityDebounceTimer) {
+      clearTimeout(this.targetHumidityDebounceTimer);
+      this.targetHumidityDebounceTimer = undefined;
+    }
+    this.pendingTargetHumidity = undefined;
+  }
+
+  private scheduleTargetHumidityCorrection(value: number) {
+    this.cancelTargetHumidityCorrection();
+    this.targetHumidityCorrectionTimer = setTimeout(() => {
+      this.updateTargetHumidityThresholds(value);
+      this.targetHumidityCorrectionTimer = undefined;
+    }, 0);
+  }
+
+  private cancelTargetHumidityCorrection() {
+    if (this.targetHumidityCorrectionTimer) {
+      clearTimeout(this.targetHumidityCorrectionTimer);
+      this.targetHumidityCorrectionTimer = undefined;
+    }
   }
 
   private setRotationSpeed(value: unknown) {
@@ -682,6 +734,7 @@ export class DehumidifierAccessory extends BaseAccessory {
           rhautolevel: this.pendingTargetHumidity,
         });
       }
+      this.pendingTargetHumidity = undefined;
       this.targetHumidityDebounceTimer = undefined;
     }, this.COMMAND_DEBOUNCE_MS);
   }
